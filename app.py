@@ -14,6 +14,12 @@ if database_url:
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "connect_args": {
+            "connect_timeout": 5
+        }
+    }
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///local.db"
 
@@ -21,9 +27,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
 db = SQLAlchemy(app)
-
-with app.app_context():
-    db.create_all()
 
 
 class Task(db.Model):
@@ -191,4 +194,5 @@ def delete_task(task_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
