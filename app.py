@@ -22,6 +22,9 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
 db = SQLAlchemy(app)
 
+with app.app_context():
+    db.create_all()
+
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
