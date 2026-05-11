@@ -7,23 +7,19 @@ load_dotenv()
 
 app = Flask(__name__)
 
-database_url = os.getenv("DATABASE_URL")
-
-if database_url:
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///local.db"
-
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Konfigurasi secret key tetap menggunakan environment variable
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
-db = SQLAlchemy(app)
+# CARA B:
+# Aplikasi dipaksa memakai SQLite agar tidak error koneksi PostgreSQL di Railway.
+basedir = os.path.abspath(os.path.dirname(__file__))
+sqlite_path = os.path.join(basedir, "local.db")
+sqlite_uri = "sqlite:///" + sqlite_path.replace("\\", "/")
 
-with app.app_context():
-    db.create_all()
+app.config["SQLALCHEMY_DATABASE_URI"] = sqlite_uri
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
 
 
 class Task(db.Model):
@@ -32,11 +28,21 @@ class Task(db.Model):
     completed = db.Column(db.Boolean, default=False)
 
 
+# Membuat tabel database secara otomatis saat aplikasi berjalan
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database SQLite berhasil disiapkan")
+    except Exception as e:
+        print("Database gagal disiapkan:", e)
+
+
 @app.route("/")
 def home():
     return jsonify({
         "message": "Aplikasi To-Do List API berhasil berjalan",
         "description": "Aplikasi ini dibuat menggunakan Flask dan dideploy ke Railway",
+        "database": "SQLite",
         "endpoints": [
             "GET /",
             "GET /health",
@@ -62,7 +68,8 @@ def init_db():
     try:
         db.create_all()
         return jsonify({
-            "message": "Database berhasil diinisialisasi"
+            "message": "Database berhasil diinisialisasi",
+            "database": "SQLite"
         })
     except Exception as e:
         return jsonify({
@@ -89,6 +96,7 @@ def get_tasks():
             "total": len(result),
             "tasks": result
         })
+
     except Exception as e:
         return jsonify({
             "status": "error",
@@ -191,4 +199,5 @@ def delete_task(task_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
